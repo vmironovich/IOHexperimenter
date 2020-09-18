@@ -29,7 +29,7 @@ std::shared_ptr<IOHprofiler_suite<double> > currentDoubleSuite;
 std::shared_ptr<IOHprofiler_problem<double> > currentDoubleProblem;
 std::string currentSuiteName;
 std::shared_ptr<IOHprofiler_csv_logger> currentLogger;
-std::vector<std::shared_ptr<double> > currentParameters;
+//std::vector<std::shared_ptr<double> > currentParameters;
 
 //[[Rcpp::export]]
 int cpp_init_suite(String suite_name, const std::vector<int> &problem_id, const std::vector<int> &instance_id, const std::vector<int> &dimension) {
@@ -80,7 +80,7 @@ IntegerVector cpp_get_problem_list() {
     return wrap(currentDoubleSuite->IOHprofiler_suite_get_problem_id());
   } else {
     Rcout << "No suite exists.\n";
-    return NULL;
+    return R_NilValue;
   }
 }
 
@@ -92,7 +92,7 @@ IntegerVector cpp_get_dimension_list() {
     return wrap(currentDoubleSuite->IOHprofiler_suite_get_dimension());
   } else {
     Rcout << "No suite exists.\n";
-    return NULL;
+    return R_NilValue;
   }
 }
 
@@ -104,7 +104,7 @@ IntegerVector cpp_get_instance_list() {
     return wrap(currentDoubleSuite->IOHprofiler_suite_get_instance_id());
   } else {
     Rcout << "No suite exists.\n";
-    return NULL;
+    return R_NilValue;
   }
 }
 
@@ -120,7 +120,7 @@ List cpp_get_suite_info() {
                         _["instances"] = cpp_get_instance_list());   
   } else {
     Rcout << "No suite exists.\n";
-    return NULL;
+    return R_NilValue;
   }
 }
 
@@ -136,7 +136,7 @@ List cpp_get_problem_info() {
                         _["instance"] = currentDoubleProblem->IOHprofiler_get_instance_id());  
   } else {
     Rcout << "No suite exists.\n";
-    return NULL;
+    return R_NilValue;
   }
 }
 
@@ -146,7 +146,7 @@ List cpp_get_next_problem() {
     currentIntProblem = currentIntSuite->get_next_problem();
     if (currentIntProblem == nullptr) {
       Rcout << "No problem left.\n";
-      return NULL;
+      return R_NilValue;
     }
     if (currentLogger != nullptr) {
       currentLogger->track_problem(currentIntProblem->IOHprofiler_get_problem_id(), 
@@ -160,7 +160,7 @@ List cpp_get_next_problem() {
     currentDoubleProblem = currentDoubleSuite->get_next_problem();
     if (currentDoubleProblem == nullptr) {
       Rcout << "No problem left.\n";
-      return NULL;
+      return R_NilValue;
     }
     if (currentLogger != nullptr) {
       currentLogger->track_problem(currentDoubleProblem->IOHprofiler_get_problem_id(), 
@@ -172,7 +172,7 @@ List cpp_get_next_problem() {
     return cpp_get_problem_info();  
   } else {
     Rcout << "No suite exists.\n";
-    return NULL;
+    return R_NilValue;
   }
 }
 
@@ -200,7 +200,7 @@ List cpp_reset_problem() {
     return cpp_get_problem_info();    
   } else {
     Rcout << "No suite exists.\n";
-    return NULL;
+    return R_NilValue;
   }
 }
 
@@ -239,20 +239,20 @@ NumericVector cpp_loggerCOCOInfo() {
   if (currentSuiteName == "PBO" && currentIntSuite != nullptr) {
     if (currentIntProblem == nullptr) {
       Rcout << "Error: No problem exist!\n";
-      return NULL;
+      return R_NilValue;
     } else {
       return wrap(currentIntProblem->loggerCOCOInfo());
     }
   } else if (currentSuiteName == "BBOB" && currentDoubleSuite != nullptr) {
     if (currentDoubleProblem == nullptr) {
       Rcout << "Error: No problem exist!\n";
-      return NULL;
+      return R_NilValue;
     } else {
       return wrap(currentDoubleProblem->loggerCOCOInfo());
     }
   } else {
     Rcout << "Error: No problem exist!\n";
-    return NULL;
+    return R_NilValue;
   }
 }
 
@@ -261,20 +261,20 @@ NumericVector cpp_loggerInfo() {
   if (currentSuiteName == "PBO" && currentIntSuite != nullptr) {
     if (currentIntProblem == nullptr) {
       Rcout << "Error: No problem exist!\n";
-      return NULL;
+      return R_NilValue;
     } else {
       return wrap(currentIntProblem->loggerInfo());
     }
   } else if (currentSuiteName == "BBOB" && currentDoubleSuite != nullptr) {
     if (currentDoubleProblem == nullptr) {
       Rcout << "Error: No problem exist!\n";
-      return NULL;
+      return R_NilValue;
     } else {
       return wrap(currentDoubleProblem->loggerInfo());
     }
   } else {
     Rcout << "Error: No problem exist!\n";
-    return NULL;
+    return R_NilValue;
   }
 }
 
@@ -289,6 +289,16 @@ int cpp_write_line(const std::vector<double> &line_info) {
   }
 }
 
+//[[Rcpp::export]]
+int cpp_do_log(const std::vector<double> &line_info) {
+  if (currentLogger == nullptr) {
+    Rcout << "Error! No logger exists.\n";
+    return 1;
+  } else {
+    currentLogger->do_log(line_info);
+    return 0;
+  }
+}
 
 // Since we suppose that users will only get problems from a suite, only target_suite function is provided here.
 //[[Rcpp::export]]
@@ -313,29 +323,58 @@ int cpp_set_parameters_name(const std::vector<std::string> &parameters_name) {
     Rcout << "Error! No logger exists.\n";
     return 1;
   }
-
-  if (currentParameters.size() != 0) {
-    currentParameters.clear();
-  }
-  for (int i = 0; i != parameters_name.size(); ++i) {
-    currentParameters.push_back(std::make_shared<double>(0));
-  }
-  currentLogger->set_parameters(currentParameters,parameters_name);
+  currentLogger->set_parameters_name(parameters_name);
   return 0;
 }
 
 //[[Rcpp::export]]
-int cpp_set_parameters_value(const std::vector<double> & parameters) {
-  if (parameters.size() != currentParameters.size()) {
-    Rcout << "Error! The number of parameters does not match.\n";
+int cpp_set_parameters(const std::vector<std::string> & parameters_name,const std::vector<double> &parameters) {
+  if (currentLogger == nullptr) {
+    Rcout << "Error! No logger exists.\n";
     return 1;
   }
-  else {
-    for (int i = 0; i != parameters.size(); ++i) {
-      *currentParameters[i] = parameters[i];
-    }
-    return 0;
+  currentLogger->set_parameters_name(parameters_name,parameters);
+  return 0;
+}
+
+//[[Rcpp::export]]
+int cpp_add_double_attribute(std::string name, double value) {
+  if (currentLogger == nullptr) {
+    Rcout << "Error! No logger exists.\n";
+    return 1;
   }
+  currentLogger->add_attribute(name,value);
+  return 0;
+}
+
+//[[Rcpp::export]]
+int cpp_add_int_attribute(std::string name, int value) {
+  if (currentLogger == nullptr) {
+    Rcout << "Error! No logger exists.\n";
+    return 1;
+  }
+  currentLogger->add_attribute(name,value);
+  return 0;
+}
+
+//[[Rcpp::export]]
+int cpp_add_string_attribute1(std::string name, std::string value) {
+  if (currentLogger == nullptr) {
+    Rcout << "Error! No logger exists.\n";
+    return 1;
+  }
+  currentLogger->add_attribute(name,value);
+  return 0;
+}
+
+//[[Rcpp::export]] 
+int cpp_delete_attribute(std::string name) {
+  if (currentLogger == nullptr) {
+    Rcout << "Error! No logger exists.\n";
+    return 1;
+  }
+  currentLogger->delete_attribute(name);
+  return 0;
 }
 
 //[[Rcpp::export]]
@@ -415,7 +454,7 @@ NumericVector cpp_get_double_upper_bounds() {
     }
   } else {
     Rcout << "Error: No problem exist!\n";
-    return NULL;
+    return R_NilValue;
   }
 } 
 
@@ -430,7 +469,7 @@ NumericVector cpp_get_double_lower_bounds() {
     }
   } else {
     Rcout << "Error: No problem exist!\n";
-    return NULL;
+    return R_NilValue;
   }
 } 
 
@@ -445,7 +484,7 @@ IntegerVector cpp_get_int_upper_bounds() {
     }
   } else {
     Rcout << "Error: No problem exist!\n";
-    return NULL;
+    return R_NilValue;
   }
 } 
 
@@ -460,7 +499,7 @@ IntegerVector cpp_get_int_lower_bounds() {
     }
   } else {
     Rcout << "Error: No problem exist!\n";
-    return NULL;
+    return R_NilValue;
   }
 } 
 

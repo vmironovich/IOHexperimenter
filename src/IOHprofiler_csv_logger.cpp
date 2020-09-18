@@ -27,13 +27,44 @@ IOHprofiler_csv_logger::~IOHprofiler_csv_logger() {
 }
 
 bool IOHprofiler_csv_logger::folder_exist(std::string folder_name) {
-  std::fstream _file;
-  _file.open(folder_name, std::ios::in);
-  if(!_file) {
-    return false;
-  } else {
-    return true;
-  }
+  // #if defined(_WIN32) || defined(_WIN64) || defined(__MINGW64__) || defined(__CYGWIN__)
+  //   DWORD ftyp = GetFileAttributesA(folder_name.c_str());
+  //   if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+  //     return true;
+  //   else
+  //     return false;
+  // #else
+  //   std::fstream _file;
+  //   _file.open(folder_name, std::ios::in);
+  //   if(!_file) {
+  //     return false;
+  //   } else {
+  //     return true;
+  //   }
+  // #endif
+  
+  // Check for existence.
+  #if defined(_WIN32) || defined(_WIN64) || defined(__MINGW64__) || defined(__CYGWIN__)
+    if( _access(folder_name.c_str(), 0 ) != -1 ) {
+      // Check for write permission.
+      // Assume file is read-only.
+      if( _access(folder_name.c_str(), 2 ) == -1 )
+        return false;
+      else 
+        return true;
+    } else {
+      return false;
+    }
+  #else
+    if( access(folder_name.c_str(), F_OK ) == 0) {
+      if( access(folder_name.c_str(), W_OK ) == 0)
+        return true;
+      else
+        return false;
+    } else {
+      return false;
+    }
+  #endif
 }
 
 void IOHprofiler_csv_logger::activate_logger() {
@@ -246,6 +277,42 @@ void IOHprofiler_csv_logger::set_parameters(const std::vector<std::shared_ptr<do
   }
   for (size_t i = 0; i != parameters.size(); i++) {
     this->logging_parameters[parameters_name[i]] = parameters[i];
+  }
+}
+
+
+///Only for python wrapper.
+void IOHprofiler_csv_logger::set_parameters_name(const std::vector<std::string > &parameters_name) {
+  if (this->wrapper_logging_parameters.size() != 0) {
+    this->wrapper_logging_parameters.clear();
+  }
+  //default value set as -9999.
+  for (size_t i = 0; i != parameters_name.size(); i++) {
+    this->wrapper_logging_parameters[parameters_name[i]] = -9999;
+  }
+}
+
+///Only for python wrapper.
+void IOHprofiler_csv_logger::set_parameters_name(const std::vector<std::string > &parameters_name, const std::vector<double> &initial_parameters) {
+  if (parameters_name.size() != initial_parameters.size()) {
+    IOH_error("Parameters and their names are given with different size.");
+  }
+  //default value set as -9999.
+  for (size_t i = 0; i != parameters_name.size(); i++) {
+    this->wrapper_logging_parameters[parameters_name[i]] = initial_parameters[i];
+  }
+}
+
+///Only for python wrapper.
+void IOHprofiler_csv_logger::set_parameters(const std::vector<std::string > &parameters_name, const std::vector<double> &parameters) {
+  if (parameters_name.size() != parameters.size()) {
+    IOH_error("Parameters and their names are given with different size.");
+  }
+  for (size_t i = 0; i != parameters_name.size(); ++i)
+  if(this->wrapper_logging_parameters.find(parameters_name[i]) != this->wrapper_logging_parameters.end()) {
+    this->wrapper_logging_parameters[parameters_name[i]] = parameters[i];
+  } else {
+    IOH_error("Parameter " + parameters_name[i] + " does not exist");
   }
 }
 
