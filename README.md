@@ -1,4 +1,4 @@
-#Deprication Warning!
+# Deprication Warning!
 
 Note: this version of the IOHexperimenter interface has been depricated. Please refer to the [master branch](https://github.com/IOHprofiler/IOHexperimenter) for the up-to-date interface!
 
